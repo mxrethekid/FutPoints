@@ -300,6 +300,30 @@ body.hh #hud::after{display:none}
 #rxm{background:rgba(10,16,28,.88);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.16)}
 .pwr{border-top-color:rgba(255,255,255,.08)}
 #score .nf,#score .ns{display:none!important}
+
+/* rendimiento: sin desenfoques sobre el canvas (obligaban a re-difuminar en cada frame y hacían lentos los botones) */
+.card,#hud,#score,#kick,#dash,#sup,#pup,#cfg,#pwi,#ctlp,#tst,#chat,#sndp,#chFeed p,#rxm{-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
+#hud{background:linear-gradient(180deg,rgba(8,13,23,.92),rgba(8,13,23,.74))}
+#cfg,#pwi{background:rgba(6,9,16,.9)}
+#tst{background:rgba(8,13,23,.92)}
+#chat,#sndp{background:rgba(10,16,28,.96)}
+#chFeed p{background:rgba(8,13,23,.82)}
+#rxm{background:rgba(10,16,28,.97)}
+#kick,#dash,#sup,#pup{transition:none;will-change:transform}
+#kick.p,#dash.p,#pup.p{transform:scale(.92);filter:brightness(1.3)}
+/* panel de controles dentro de la partida */
+#bCtl{position:fixed;top:50px;left:calc(max(8px,env(safe-area-inset-left)) + 88px);width:38px;height:28px;padding:0;z-index:7;opacity:.6;font-size:14px}
+#bCtl:active{opacity:1}
+body.hh #bCtl{top:4px}
+body:not(.ig) #bCtl{display:none!important}
+#ctlp{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(6,9,16,.55);z-index:40;padding:10px}
+#ctlp.on{display:flex}
+#ctlp .card{max-width:440px;max-height:100%;overflow-y:auto;padding:14px;touch-action:pan-y;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+#ctlp .card *{touch-action:pan-y}
+#ctlp .ch{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;font-size:17px}
+#ctlp b.t{display:block;margin:8px 0 4px;font-size:13px;color:#9aa7b8}
+#ctlp .row{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 6px}
+#ctlp small{display:block;color:#9aa7b8;margin-bottom:4px}
 </style>
 </head>
 <body>
@@ -349,6 +373,7 @@ body.hh #hud::after{display:none}
 <button class="chip" id="bChat" title="Chat">💬<i id="chB"></i></button>
 <button class="chip" id="bRx" title="Reacciones (R)">😎</button>
 <button class="chip" id="bInfo" title="Qué hace cada poder">ℹ️</button>
+<button class="chip" id="bCtl" title="Controles">🎮</button>
 <div id="chat"><div id="chLog"></div><div id="chRow"><input id="chIn" maxlength="120" placeholder="Escribe un mensaje…" autocomplete="off"><button class="chip" id="chSend">➤</button></div></div>
 <div id="chFeed"></div>
 <div id="rxm"></div>
@@ -391,6 +416,18 @@ body.hh #hud::after{display:none}
  <button class="btn" id="cClose">Listo</button>
 </div></div>
 <div id="pwi"><div class="card"><div class="pwh"><b>⚡ Poderes</b><button class="chip" id="pwiX">✕</button></div><p class="pwn" id="pwnote"></p><div id="pwl"></div></div></div>
+<div id="ctlp"><div class="card">
+ <div class="ch"><b>🎮 Controles</b><button class="chip" id="ctlX">✕</button></div>
+ <b class="t">Teclado (ordenador)</b>
+ <div class="row"><button class="chip" data-kb="k" data-lbl="Chutar"></button><button class="chip" data-kb="d" data-lbl="Dash"></button><button class="chip" data-kb="u" data-lbl="Poder"></button></div>
+ <small>Moverse: flechas o WASD. Pulsa un botón y luego la tecla que quieras.</small>
+ <b class="t">Tamaño de los botones (móvil)</b>
+ <div class="row"><button class="chip" data-sz=".8">Pequeños</button><button class="chip" data-sz="1">Normales</button><button class="chip" data-sz="1.25">Grandes</button></div>
+ <b class="t">Tamaño del joystick</b>
+ <div class="row"><button class="chip" data-js=".8">Pequeño</button><button class="chip" data-js="1">Normal</button><button class="chip" data-js="1.3">Grande</button></div>
+ <div class="row"><button class="chip" id="bLh2"></button><button class="chip" id="bRst2">Restablecer</button></div>
+ <button class="btn" id="ctlOk">Listo</button>
+</div></div>
 <div id="rot">📱↻<br><br>Gira el móvil a horizontal para jugar</div>
 
 <script>
@@ -491,7 +528,8 @@ function cfgUI(){
  document.querySelectorAll('[data-kb]').forEach(b=>{const n=b.dataset.kb;b.textContent=b.dataset.lbl+': '+(binding===n?'pulsa una tecla…':keyName(KB[n]))});
  document.documentElement.style.setProperty('--bs',UI.s);document.body.classList.toggle('lh',!!UI.lh);document.body.classList.toggle('hh',!!UI.hh);
  document.querySelectorAll('[data-sz]').forEach(b=>b.classList.toggle('on',+b.dataset.sz===+UI.s));
- $('bLh').textContent='Modo zurdo: '+(UI.lh?'Sí':'No');
+ $('bLh').textContent='Modo zurdo: '+(UI.lh?'Sí':'No');$('bLh2').textContent=$('bLh').textContent;
+ document.querySelectorAll('[data-js]').forEach(b=>b.classList.toggle('on',+b.dataset.js===+(UI.j||1)));
  if($('zR'))$('zR').textContent=Math.round((UI.z||1)*100)+'%';
  try{localStorage.setItem('hbkeys2',JSON.stringify(KB));localStorage.setItem('hbui',JSON.stringify(UI))}catch(e){}
 }
@@ -501,6 +539,13 @@ $('bLh').onclick=()=>{UI.lh=UI.lh?0:1;cfgUI()};
 $('bHud').onclick=()=>{$('sndp').classList.remove('on');UI.hh=1;cfgUI()};
 $('hudS').onclick=()=>{UI.hh=0;cfgUI()};
 $('bRst').onclick=()=>{KB={...DKB};UI={s:1,lh:0,z:1};binding=null;cfgUI()};
+document.querySelectorAll('[data-js]').forEach(b=>b.onclick=()=>{UI.j=+b.dataset.js;cfgUI()});
+$('bLh2').onclick=$('bLh').onclick;$('bRst2').onclick=$('bRst').onclick;
+const ctlClose=()=>{binding=null;cfgUI();$('ctlp').classList.remove('on')};
+$('bCtl').onclick=()=>{binding=null;cfgUI();$('ctlp').classList.add('on')};
+$('ctlX').onclick=ctlClose;$('ctlOk').onclick=ctlClose;
+$('ctlp').addEventListener('pointerdown',e=>{if(e.target===$('ctlp'))ctlClose()});
+addEventListener('keydown',e=>{if(e.key==='Escape'&&$('ctlp').classList.contains('on'))ctlClose()});
 addEventListener('keydown',e=>{
  if(!binding)return;
  e.preventDefault();e.stopImmediatePropagation();
@@ -711,10 +756,8 @@ function botAI(){
  const B=G.ball,sp=1,act=G.phase==='play'||G.phase==='lobby';
  const bots=[...G.players.values()].filter(p=>p.bot&&p.team);
  const sh=Math.hypot(B.vx,B.vy);
- /* esquina: si el balón lleva un rato casi parado en una esquina, se lo saca hacia dentro (evita bucles de chutes) */
+ /* esquina: solo se usa más abajo para que los bots no chuten sin parar; ya NO se mueve el balón solo */
  const cornerBall=Math.abs(B.x)>W/2-95&&Math.abs(B.y)>H/2-95;
- if(cornerBall&&sh<2.2&&act&&!G.ti)CORN++;else CORN=Math.max(0,CORN-2);
- if(CORN>40){CORN=0;B.vx=-Math.sign(B.x)*3.2;B.vy=-Math.sign(B.y)*2.2}
  /* anticipación: dónde estará el balón dentro de t ticks (con el rozamiento del balón) */
  const pred=t=>{const d=B.damp,f=d<1?(1-Math.pow(d,t))/(1-d):t;return[clamp(B.x+B.vx*f,-W/2+BR,W/2-BR),clamp(B.y+B.vy*f,-H/2+BR,H/2-BR)]};
  const allp=[...G.players.values()].filter(p=>p.team);
@@ -912,7 +955,7 @@ function botAI(){
    }
    if(chase&&trap){tx=tpx;ty=tpy}/* parada: al punto donde cruzará el balón */
    const tkr=chase&&G.ti&&M.real&&G.ti.t===t;/* sacando: puede salir del campo (hasta la zona exterior) para ponerse detrás del balón */
-   const lx=tkr?W/2+OUT-PR-4:mx,ly=tkr?H/2+OUT-PR-4:my;
+   const lx=(tkr||chase)?W/2+OUT-PR-4:mx,ly=(tkr||chase)?H/2+OUT-PR-4:my;/* el que persigue el balón puede salir del campo para golpearlo hacia dentro */
    tx=clamp(tx,-lx,lx);ty=clamp(ty,-ly,ly);
    [tx,ty]=zoneFix(p,tx,ty);
    const dx=tx-p.x,dy=ty-p.y,l=Math.hypot(dx,dy);
@@ -943,7 +986,7 @@ function botAI(){
    }
    if(chase&&trap)k=0;/* parando: no chuta */
    if(k&&diff>0&&(p.ss>0||(p.tm>0&&diff===2))&&B.x*dir<W*(p.ss>0?.1:.2)&&(B.x-own)*dir>W*.3)k=0;/* guardan el súper chute / el imán para atacar */
-   if(k&&cornerBall&&sh<2.2&&bt%24!==0)k=0;/* en la esquina no chutan sin parar */
+   if(k&&cornerBall&&sh<2.2&&bt%24!==0&&!((Math.abs(B.x)>W/2-95&&Math.abs(p.x)>Math.abs(B.x))||(Math.abs(B.y)>H/2-95&&Math.abs(p.y)>Math.abs(B.y))))k=0;/* en la esquina no chutan sin parar */
    /* DASH: la dificultad cambia CUÁNTO y CÓMO lo usan, no la velocidad.
       Fácil: casi no lo usan, solo de muy lejos, con el rumbo torpe y a veces lo malgastan.
       Normal: lo usan al perseguir de lejos, a veces para cortar un balón rápido y el portero para despejar.
@@ -1038,9 +1081,9 @@ function tiKick(ux,uy,f,fx){
  const l=Math.hypot(nx,ny)||1;return[nx/l,ny/l,f];
 }
 /* zonas prohibidas para el equipo rival mientras se espera el saque */
-function tiClamp(){
+function tiClamp(L){
  const T=G.ti,hw=W/2,hh=H/2,pw=W*.16,ph=H*.6;
- for(const p of P){
+ for(const p of (L||P)){
   if(p.team===T.t)continue;
   if(T.k===0){
    const lim=T.sy*(hh-THD-p.r);
@@ -1360,14 +1403,16 @@ let jid=null,ox=0,oy=0;
 const joy=$('joy'),jb=$('jb'),jt=$('jt'),R=50;
 joy.addEventListener('pointerdown',e=>{
  if(jid!==null)return;jid=e.pointerId;joy.setPointerCapture(jid);ox=e.clientX;oy=e.clientY;
- jb.style.cssText=`display:block;left:${ox-55}px;top:${oy-55}px`;
- jt.style.cssText=`display:block;left:${ox-24}px;top:${oy-24}px`;
+ const s=UI.j||1;
+ jb.style.cssText=`display:block;width:${110*s}px;height:${110*s}px;left:${ox-55*s}px;top:${oy-55*s}px`;
+ jt.style.cssText=`display:block;width:${48*s}px;height:${48*s}px;left:${ox-24*s}px;top:${oy-24*s}px`;
 });
 joy.addEventListener('pointermove',e=>{
  if(e.pointerId!==jid)return;
+ const R=50*(UI.j||1),s=UI.j||1;
  let dx=e.clientX-ox,dy=e.clientY-oy;const l=Math.hypot(dx,dy);
  if(l>R){dx*=R/l;dy*=R/l}
- jt.style.left=ox+dx-24+'px';jt.style.top=oy+dy-24+'px';
+ jt.style.left=ox+dx-24*s+'px';jt.style.top=oy+dy-24*s+'px';
  jx=dx/R;jy=dy/R;if(Math.hypot(jx,jy)<.18)jx=jy=0;
 });
 const jend=e=>{if(e.pointerId!==jid)return;jid=null;jx=jy=0;jb.style.display=jt.style.display='none'};
@@ -1531,6 +1576,22 @@ function drawPitch(g){
   g.beginPath();g.arc(cx,cy,3.2,0,7);g.fillStyle='#fff';g.fill();
  }
 }
+let pitchC=null,pitchK='';
+function pitchBlit(){
+ const S=dpr*LY.s,k=MI+'|'+S.toFixed(3)+'|'+W+'|'+H;
+ if(k!==pitchK){
+  pitchK=k;pitchC=null;
+  const pw=Math.ceil((W+2*GD+2*OUT)*S),ph=Math.ceil((H+2*OUT)*S);
+  if(pw<=4096&&ph<=4096&&pw*ph<=12e6){
+   pitchC=document.createElement('canvas');pitchC.width=pw;pitchC.height=ph;
+   const g=pitchC.getContext('2d');g.setTransform(S,0,0,S,pw/2,ph/2);drawPitch(g);
+  }
+ }
+ ctx.save();
+ if(pitchC){ctx.setTransform(1,0,0,1,0,0);ctx.drawImage(pitchC,Math.round(dpr*LY.x-pitchC.width/2),Math.round(dpr*LY.y-pitchC.height/2))}
+ else drawPitch(ctx);
+ ctx.restore();
+}
 function draw(){
  const key=cw+'|'+ch+'|'+MI+'|'+dpr+'|'+(UI.hh?1:0)+'|'+(UI.z||1);
  if(key!==fkey){buildField();fkey=key}
@@ -1545,7 +1606,7 @@ function draw(){
  ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,cv.width,cv.height);
  ctx.setTransform(dpr*LY.s,0,0,dpr*LY.s,dpr*LY.x,dpr*LY.y);
  const hw=W/2,hh=H/2;
- if(M.real){ctx.save();drawPitch(ctx);ctx.restore()}
+ if(M.real)pitchBlit();
  if(G.rs&&G.phase==='play'){ctx.strokeStyle='#f2c94c';ctx.lineWidth=3;ctx.setLineDash([8,6]);ctx.beginPath();ctx.arc(0,0,60,0,7);ctx.stroke();ctx.setLineDash([])}
  for(const w of G.wl){
   const x0=w.x-7,bh=GH/8;let w0=WT.get(w.x);if(w0===undefined){w0=performance.now();WT.set(w.x,w0)}
@@ -1988,13 +2049,13 @@ document.addEventListener('visibilitychange',()=>{
 /* ---------- bucle principal ---------- */
 let last=performance.now(),acc=0,tick=0,snapT=0,hk='';
 let dce=0,hSkip=false,hFlip=0;
-let rtt=100,pdd=0,pdc=0,hist=[],pacc=0,lastPing=0,lastQ=0;
+let rtt=100,pdd=0,pdc=0,hist=[],pacc=0,lastPing=0,lastQ=0,lastBk='0,0,0';
 function pcol(me){
  /* colisión local con el balón y los demás (copias temporales, no se mueven los reales) */
  const g={x:0,y:0,vx:0,vy:0,r:0,im:1,bc:.5};
- const go=o=>{g.x=o.x;g.y=o.y;g.vx=o.vx||0;g.vy=o.vy||0;g.r=o.r;g.im=o.im||1;g.bc=o.bc===undefined?.5:o.bc;col(me,g)};
+ const go=o=>{g.x=o.x;g.y=o.y;g.vx=o.vx||0;g.vy=o.vy||0;g.r=o.r;g.im=o.im===undefined?1:o.im;g.bc=o.bc===undefined?.5:o.bc;col(me,g)};
  G.players.forEach(q=>{if(q!==me&&q.team&&!(q.fx&8))go(q)});
- go(G.ball);
+ if(G.ti){const b=G.ball;g.x=b.x;g.y=b.y;g.vx=g.vy=0;g.r=b.r;g.im=0;g.bc=.5;col(me,g)}else go(G.ball);
 }
 function pstep(p,i){
  let x=i.x,y=i.y;const l=Math.hypot(x,y);if(l>1){x/=l;y/=l}
@@ -2003,7 +2064,7 @@ function pstep(p,i){
  const a=(i.k?M.ka:M.acc)*SPD[spi]*(p.fx&1?1.7:1)*(p.fx&64?.5:1);
  const sm=steer(p,'pvx','pvy',x,y);p.pvx+=x*a*sm;p.pvy+=y*a*sm;
  p.x+=p.pvx;p.y+=p.pvy;p.pvx*=.96;p.pvy*=.96;
- p.vx=p.pvx;p.vy=p.pvy;pcol(p);wall(p);p.pvx=p.vx;p.pvy=p.vy;
+ p.vx=p.pvx;p.vy=p.pvy;pcol(p);wall(p);if(G.ti&&p.team)tiClamp([p]);for(const w of G.wl)seg(p,w.x,-GH/2,w.x,GH/2,0);p.pvx=p.vx;p.pvy=p.vy;
  if(G.rs&&G.phase==='play'&&p.team)kickClamp(p);
 }
 function loop(now){
@@ -2011,8 +2072,8 @@ function loop(now){
  let dt=now-last;last=now;if(dt>100)dt=100;
  const i=getIn();if(i.k){myK=1;myKT=now}else myK=0;const key=i.x+','+i.y+','+i.k+','+i.d+','+i.s+','+i.u;
  if(isHost){const p=G.players.get('host');if(p)p.in=i}
- else if(hostConn&&hostConn.open&&((key!==lastIn&&now-lastSend>=33)||now-lastSend>100)){
-  netJ(hostConn,{t:'in',x:i.x,y:i.y,k:i.k,d:i.d,s:i.s,u:i.u});lastIn=key;lastSend=now;
+ else if(hostConn&&hostConn.open&&((key!==lastIn&&(now-lastSend>=16||(i.k+','+i.d+','+i.u)!==lastBk))||now-lastSend>100)){
+  netJ(hostConn,{t:'in',x:i.x,y:i.y,k:i.k,d:i.d,s:i.s,u:i.u});lastIn=key;lastSend=now;lastBk=i.k+','+i.d+','+i.u;
  }
  if(isHost){
   acc+=dt;
