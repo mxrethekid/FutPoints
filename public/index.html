@@ -1989,6 +1989,13 @@ document.addEventListener('visibilitychange',()=>{
 let last=performance.now(),acc=0,tick=0,snapT=0,hk='';
 let dce=0,hSkip=false,hFlip=0;
 let rtt=100,pdd=0,pdc=0,hist=[],pacc=0,lastPing=0,lastQ=0;
+function pcol(me){
+ /* colisión local con el balón y los demás (copias temporales, no se mueven los reales) */
+ const g={x:0,y:0,vx:0,vy:0,r:0,im:1,bc:.5};
+ const go=o=>{g.x=o.x;g.y=o.y;g.vx=o.vx||0;g.vy=o.vy||0;g.r=o.r;g.im=o.im||1;g.bc=o.bc===undefined?.5:o.bc;col(me,g)};
+ G.players.forEach(q=>{if(q!==me&&q.team&&!(q.fx&8))go(q)});
+ go(G.ball);
+}
 function pstep(p,i){
  let x=i.x,y=i.y;const l=Math.hypot(x,y);if(l>1){x/=l;y/=l}
  if(i.d){if(!pdd){pdd=1;if(pdc<=0){let dx=x,dy=y,L=Math.hypot(dx,dy);if(L<.2){dx=p.pvx;dy=p.pvy;L=Math.hypot(dx,dy)}if(L<.3){dx=p.team==1?1:-1;dy=0;L=1}const ds=DASH*(p.fx&64?.5:1);p.pvx+=dx/L*ds;p.pvy+=dy/L*ds;pdc=180;sfxDash(1)}}}else pdd=0;
@@ -1996,7 +2003,7 @@ function pstep(p,i){
  const a=(i.k?M.ka:M.acc)*SPD[spi]*(p.fx&1?1.7:1)*(p.fx&64?.5:1);
  const sm=steer(p,'pvx','pvy',x,y);p.pvx+=x*a*sm;p.pvy+=y*a*sm;
  p.x+=p.pvx;p.y+=p.pvy;p.pvx*=.96;p.pvy*=.96;
- p.vx=p.pvx;p.vy=p.pvy;wall(p);p.pvx=p.vx;p.pvy=p.vy;
+ p.vx=p.pvx;p.vy=p.pvy;pcol(p);wall(p);p.pvx=p.vx;p.pvy=p.vy;
  if(G.rs&&G.phase==='play'&&p.team)kickClamp(p);
 }
 function loop(now){
