@@ -36,7 +36,7 @@ function setTeams(i1,i2){const ok=i=>i===-1||!!TEAMS[i];if(!ok(i1)||!ok(i2)||(i1
 const POST = `
 var tick=0;
 var _ss=snapStatic;snapStatic=function(){const o=_ss();o.ad=ADMIN;return o};
-function S_one(){step();const SR=conns.length>8?3:2;if(++tick%SR===0)broadcast()}
+function S_one(){step();G.players.forEach(p=>{if(p.kn){const r=p.kr||[0,0,0];p.in.k=r[0];p.in.d=r[1];p.in.u=r[2];p.kn=0}});const SR=conns.length>8?3:2;if(++tick%SR===0)broadcast()}
 function S_force(){stN=4}
 function S_add(id,name,num){if(G.players.size>=MAXP)return false;G.players.set(id,mk(id,String(name||'Jugador').slice(0,12),num));return true}
 function S_del(id){G.players.delete(id)}
@@ -44,7 +44,7 @@ function S_zero(id){const p=G.players.get(id);if(p)p.in={x:0,y:0,k:0,d:0,s:0,u:0
 function S_pings(){const o={};G.players.forEach((p,id)=>{if(!p.bot)o[id]=p.pg|0});return o}
 function S_msg(id,m){
  const p=G.players.get(id);if(!p)return;
- if(m.t==='in'){const x=+m.x,y=+m.y;p.in={x:clamp(isFinite(x)?x:0,-1,1),y:clamp(isFinite(y)?y:0,-1,1),k:m.k?1:0,d:m.d?1:0,s:m.s?1:0,u:m.u?1:0}}
+ if(m.t==='in'){const x=+m.x,y=+m.y,k=m.k?1:0,d=m.d?1:0,u=m.u?1:0;p.kr=[k,d,u];p.kn=(p.kn||0)|k|(d<<1)|(u<<2);p.in={x:clamp(isFinite(x)?x:0,-1,1),y:clamp(isFinite(y)?y:0,-1,1),k:(k||(p.kn&1))?1:0,d:(d||(p.kn&2))?1:0,s:m.s?1:0,u:(u||(p.kn&4))?1:0}}
  else if(m.t==='team')setTeam(p,+m.v);
  else if(m.t==='chat'){
   const n=Date.now();if(n-(p.cl||0)<500)return;p.cl=n;
