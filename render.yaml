@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: futpoints
+    runtime: node
+    plan: free
+    region: frankfurt
+    buildCommand: npm install
+    startCommand: node server.js
+    healthCheckPath: /health
