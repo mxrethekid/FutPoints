@@ -664,9 +664,16 @@ function setMode(i,host){
  G.ti=null;G.ball.im=1;MI=i;M=MODES[i];if(!M.real)lastStd=i;W=M.W;H=M.H;GH=M.GH;G.ball.damp=M.bd;
  if(host){G.time=TIME;G.score=[0,0];G.msg='';kickoff()}
 }
+const BNAMES=['L. Messini','C. Ronaldez','K. Mbarré','E. Haalend','Vini Júnyor','J. Bellinham','Lewandosky','K. De Bruine','M. Salahi','H. Kaine','A. Griezmón','S. Ramoz','V. Van Dyck','L. Modrik','T. Kroose','J. Musialo','Pedrín','Gavy','Raphiña','Neymaro','S. Agüeroz','A. Iniesto','Xavo H.','Z. Ibrahimic','D. Beckam','R. Carloz','Z. Zidanne','Ronaldinio','A. Pirlow','F. Tottini','G. Buffoni','P. Maldino','D. Maradonna','J. Kruyf','G. Bail','L. Suaréz','S. Maney','R. Marez','O. Dembelo','T. Courtoy','M. Nauer','E. Martínes','N. Kantey','R. Varano','S. Busquet','A. Hakimo','F. Valverdi','C. Gakpó','B. Silvo','P. Fodén'];
+const BNUMS=[10,7,9,11,8,6,4,5,3,2,14,17,19,20,21,22,23,15,16,18,13,12,24,25,26,27,28,29,30];/* dorsales habituales primero */
 function addBot(t){
  if(G.players.size>=MAXP)return;
- const p=mk('bot'+(++botN),'Bot '+botN,(botN*7+3)%99+1);p.bot=true;G.players.set(p.id,p);setTeam(p,t);
+ const used=new Set(),usedN=new Set();
+ for(const q of G.players.values()){used.add(q.name);if(q.team===t&&q.num)usedN.add(+q.num)}
+ const k=++botN;let nm='Bot '+k;
+ for(let i=0;i<BNAMES.length;i++){const c=BNAMES[(k*7+i)%BNAMES.length];if(!used.has(c)){nm=c;break}}
+ let nu=0;for(const n of BNUMS)if(!usedN.has(n)){nu=n;break}
+ const p=mk('bot'+k,nm,nu||((k*7+3)%99+1));p.bot=true;G.players.set(p.id,p);setTeam(p,t);
 }
 function delBot(t){
  const L=[...G.players.values()].filter(p=>p.bot&&p.team===t);
@@ -1160,7 +1167,7 @@ function step(){
    const lg=Math.min(BH.length,Math.round(Math.min(p.pg+45,320)/16.67));
    if(lg>0){const h=BH[BH.length-lg],hx=h[0]-p.x,hy=h[1]-p.y,hd=Math.hypot(hx,hy);if(hd&&hd<kr&&d<kr+60){vx0=hx;vy0=hy;vd=hd}}
   }
-  if(p.in.k){if(!p.kk&&vd&&vd<kr&&(!G.ti||p.team===G.ti.t)){const sup=p.ss>0;let f=sup?M.ks*2.3:M.ks;if(sup)p.ss=0;let ux=vx0/vd,uy=vy0/vd;if(G.ti){let fx=0;if(p.bot&&p.in.ta){const ex=p.in.ta[0]-B.x,ey=p.in.ta[1]-B.y,el=Math.hypot(ex,ey)||1;ux=ex/el;uy=ey/el;fx=p.in.ta[2]||0}const r=tiKick(ux,uy,f,fx);ux=r[0];uy=r[1];f=r[2];endThrowIn()}B.vx+=ux*f;B.vy+=uy*f;p.kk=1;G.hold=false;kd=1;G.lt=p.id;G.lk=p.id;G.ltt=G.lkt=bt;fev(['k',B.x|0,B.y|0,sup?1:0,p.cv>0?1:0])}}
+  if(p.in.k){if(!p.kk&&vd&&vd<kr&&(!G.ti||p.team===G.ti.t)){const sup=p.ss>0;let f=sup?M.ks*2.3:M.ks;if(sup)p.ss=0;let ux=vx0/vd,uy=vy0/vd;if(G.ti){let fx=0;if(p.bot&&p.in.ta){const ex=p.in.ta[0]-B.x,ey=p.in.ta[1]-B.y,el=Math.hypot(ex,ey)||1;ux=ex/el;uy=ey/el;fx=p.in.ta[2]||0}const r=tiKick(ux,uy,f,fx);ux=r[0];uy=r[1];f=r[2];endThrowIn()}B.vx+=ux*f;B.vy+=uy*f;p.kk=1;G.hold=false;kd=1;G.lt=p.id;G.lk=p.id;G.ltt=G.lkt=bt;fev(['k',B.x|0,B.y|0,sup?1:0,p.cv>0?1:0,p.id])}}
   else p.kk=0;
   if(kd&&p.cv>0){G.cb={id:p.id,t:90};p.cv=0}
   if(kd&&p.tm>0)p.tm=0;
@@ -1308,6 +1315,7 @@ function applySnap(m){
   seen.add(id);let p=G.players.get(id);const pnm=PNM.get(id);
   if(!p){p=mk(id,pnm?pnm[0]:'…');G.players.set(id,p);p.x=x;p.y=y}
   if(pnm){p.name=pnm[0];p.num=pnm[1]||''}
+  if(id===myId&&dc)pdc=Math.max(pdc,dc-Math.round(rtt/16.67));
   p.team=team;p.tx=x;p.ty=y;p.kk=kk;p.vx=vx||0;p.vy=vy||0;p.dc=dc||0;p.sc=sc||0;p.pu=pu||0;p.fx=fx||0;p.ef=ef||0;p.r=(fx&4)?PR*1.5:(fx&128)?PR*.4:PR;
   if(id===myId&&p.pon){
    const t=snapT-rtt;let h=null,bd=1e9;for(const e of hist){const d=Math.abs(e[0]-t);if(d<bd){bd=d;h=e}}
@@ -1788,6 +1796,7 @@ function playEv(e){
  if(e[0]==='d'){if(e[3]===myId&&!isHost)return;sfxDash(e[3]===myId?1:.55);return}
  if(e[0]==='h'){sfxShove();ring(e[1],e[2],18,95,360,'#f2c94c',5);spark(e[1],e[2],10,200,'#fff',.35,3);return}
  if(e[0]==='k'){
+  if(e[5]===myId&&performance.now()-myKP<700)return;
   const x=e[1],y=e[2],sp=e[3];sfxKick(sp);
   ring(x,y,5,sp?52:26,sp?420:240,sp?'#ff5252':'rgba(255,255,255,.9)',sp?6:3);
   spark(x,y,sp?20:8,sp?340:210,sp?'#ffb199':'#ffffff',sp?.45:.3,sp?4.5:2.5);
@@ -2058,17 +2067,50 @@ document.addEventListener('visibilitychange',()=>{
 let last=performance.now(),acc=0,tick=0,snapT=0,hk='';
 let dce=0,hSkip=false,hFlip=0;
 let rtt=100,pdd=0,pdc=0,hist=[],pacc=0,lastPing=0,lastQ=0,lastBk='0,0,0';
+let PI=[],pkd=0,myKP=0;/* impulsos locales sobre el balón que el servidor aún no ha reflejado */
+const BF=(d,t)=>d<1?(1-Math.pow(d,t))/(1-d):t;
+function ballOff(now){/* desplazamiento visual del balón: lo que ya hice yo menos lo que el servidor ya me ha mostrado */
+ const Dv=(rtt+30)/16.67,bd=G.ball.damp||.99;let ox=0,oy=0;
+ for(let i=PI.length-1;i>=0;i--){const e=PI[i],tau=(now-e.t)/16.67;
+  if(tau>300){PI.splice(0,i+1);break}
+  const w=clamp(1-(tau-Dv-40)/60,0,1),f=(BF(bd,tau)-BF(bd,Math.max(0,tau-Dv)))*w;ox+=e.vx*f;oy+=e.vy*f;if(tau<Dv){ox+=e.dx;oy+=e.dy}}
+ const l=Math.hypot(ox,oy);if(l>140){ox*=140/l;oy*=140/l}
+ const b=G.ball,tb={x:b.x+ox,y:b.y+oy,r:BR,vx:0,vy:0,wb:0,out:0};wall(tb);/* el balón dibujado no atraviesa paredes ni postes */
+ return[tb.x-b.x,tb.y-b.y];
+}
 function pcol(me){
  /* colisión local con el balón y los demás usando sus posiciones EXTRAPOLADAS: lo que se ve va ~RTT+45 ms por detrás del servidor */
  const t=Math.min(18,(rtt+45)/16.67);
  const g={x:0,y:0,vx:0,vy:0,r:0,im:1,bc:.5};
- const go=(o,dm)=>{const f=dm<1?(1-Math.pow(dm,t))/(1-dm):t,vx=o.vx||0,vy=o.vy||0;g.x=o.x+vx*f;g.y=o.y+vy*f;g.vx=vx;g.vy=vy;g.r=o.r;g.im=o.im===undefined?1:o.im;g.bc=o.bc===undefined?.5:o.bc;col(me,g)};
+ const go=(o,dm)=>{const f=BF(dm,t),vx=o.vx||0,vy=o.vy||0;g.x=o.x+vx*f;g.y=o.y+vy*f;g.vx=vx;g.vy=vy;g.r=o.r;g.im=o.im===undefined?1:o.im;g.bc=o.bc===undefined?.5:o.bc;col(me,g)};
  G.players.forEach(q=>{if(q!==me&&q.team&&!(q.fx&8))go(q,q.damp||.96)});
- if(G.ti){const b=G.ball;g.x=b.x;g.y=b.y;g.vx=g.vy=0;g.r=b.r;g.im=0;g.bc=.5;col(me,g)}else go(G.ball,G.ball.damp||.985);
+ const b=G.ball;
+ if(G.ti){g.x=b.x;g.y=b.y;g.vx=g.vy=0;g.r=b.r;g.im=0;g.bc=.5;col(me,g);return}
+ /* balón: posición del servidor extrapolada + lo que yo ya le he hecho y el servidor aún no sabe */
+ const now=performance.now(),bd=b.damp||.99,Dg=(rtt+45)/16.67,f=BF(bd,t);
+ let ax=0,ay=0,avx=0,avy=0;
+ for(const e of PI){const tau=(now-e.t)/16.67;if(tau<Dg){const ff=BF(bd,tau),dp=Math.pow(bd,tau);ax+=e.vx*ff+e.dx;ay+=e.vy*ff+e.dy;avx+=e.vx*dp;avy+=e.vy*dp}}
+ const x0=b.x+b.vx*f+ax,y0=b.y+b.vy*f+ay,vx0=b.vx+avx,vy0=b.vy+avy;
+ g.x=x0;g.y=y0;g.vx=vx0;g.vy=vy0;g.r=b.r;g.im=b.im===undefined?1:b.im;g.bc=b.bc===undefined?.5:b.bc;
+ col(me,g);
+ const dvx=g.vx-vx0,dvy=g.vy-vy0,dpx=g.x-x0,dpy=g.y-y0;
+ if(Math.abs(dvx)+Math.abs(dvy)+Math.abs(dpx)+Math.abs(dpy)>.02){PI.push({t:now,vx:dvx,vy:dvy,dx:dpx,dy:dpy});if(PI.length>150)PI.shift()}
+}
+function predKick(p){
+ /* chute predicho al instante: sonido, efecto y el balón sale ya, sin esperar al servidor */
+ if(G.ti||(p.fx&8))return;
+ const now=performance.now(),B=G.ball,o=ballOff(now),bx=B.x+o[0],by=B.y+o[1];
+ const dx=bx-p.x,dy=by-p.y,d=Math.hypot(dx,dy),kr=p.r+BR+8;
+ if(!d||d>=kr)return;
+ const sup=(p.fx&32)?1:0,f=M.ks*(sup?2.3:1);
+ PI.push({t:now,vx:dx/d*f,vy:dy/d*f,dx:0,dy:0});if(PI.length>150)PI.shift();myKP=now;
+ sfxKick(sup);ring(bx,by,5,sup?52:26,sup?420:240,sup?'#ff5252':'rgba(255,255,255,.9)',sup?6:3);
+ spark(bx,by,sup?20:8,sup?340:210,sup?'#ffb199':'#ffffff',sup?.45:.3,sup?4.5:2.5);
 }
 function pstep(p,i){
  let x=i.x,y=i.y;const l=Math.hypot(x,y);if(l>1){x/=l;y/=l}
- if(i.d){if(!pdd){pdd=1;if(pdc<=0){let dx=x,dy=y,L=Math.hypot(dx,dy);if(L<.2){dx=p.pvx;dy=p.pvy;L=Math.hypot(dx,dy)}if(L<.3){dx=p.team==1?1:-1;dy=0;L=1}const ds=DASH*(p.fx&64?.5:1);p.pvx+=dx/L*ds;p.pvy+=dy/L*ds;pdc=180;sfxDash(1)}}}else pdd=0;
+ if(i.k){if(!pkd){pkd=1;predKick(p)}}else pkd=0;
+ if(i.d){if(!pdd){pdd=1;if(pdc<=0){let dx=x,dy=y,L=Math.hypot(dx,dy);if(L<.2){dx=p.pvx;dy=p.pvy;L=Math.hypot(dx,dy)}if(L<.3){dx=p.team==1?1:-1;dy=0;L=1}const ds=DASH*(p.fx&64?.5:1);p.pvx+=dx/L*ds;p.pvy+=dy/L*ds;pdc=180;sfxDash(1);spark(p.x,p.y,7,170,'rgba(255,255,255,.85)',.28,2.6);ring(p.x,p.y,8,24,170,'rgba(255,255,255,.55)',2)}}}else pdd=0;
  if(pdc>0)pdc--;
  const a=(i.k?M.ka:M.acc)*SPD[spi]*(p.fx&1?1.7:1)*(p.fx&64?.5:1);
  const sm=steer(p,'pvx','pvy',x,y);p.pvx+=x*a*sm;p.pvy+=y*a*sm;
@@ -2104,7 +2146,9 @@ function loop(now){
  }
  /* el anfitrión prioriza la simulación: si dibujar le cuesta mucho, pinta 1 de cada 2 frames (la física y los envíos no se tocan) */
  if(isHost&&hSkip&&(hFlip^=1)){hud();dashUI();pupUI();return}
- const t0=performance.now();draw();hud();dashUI();pupUI();
+ const t0=performance.now();let bo=null;if(!isHost&&PI.length){bo=ballOff(now);G.ball.x+=bo[0];G.ball.y+=bo[1]}
+ draw();if(bo){G.ball.x-=bo[0];G.ball.y-=bo[1]}
+ hud();dashUI();pupUI();
  if(isHost){dce=dce*.9+(performance.now()-t0)*.1;hSkip=hSkip?dce>6:dce>9}
 }
 </script>
