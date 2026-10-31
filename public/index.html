@@ -1164,7 +1164,7 @@ function step(){
   const dx=B.x-p.x,dy=B.y-p.y,d=Math.hypot(dx,dy),kr=p.r+BR+8;let kd=0;if(d<p.r+BR+3){G.lt=p.id;G.ltt=bt}
   let vx0=dx,vy0=dy,vd=d;
   if(p.in.k&&!p.kk&&!G.ti&&!p.bot&&p.pg>0&&BH.length){/* compensación de latencia: el jugador chuta lo que VE (el balón de hace ~RTT+45 ms) */
-   const lg=Math.min(BH.length,Math.round(Math.min(p.pg+45,320)/16.67));
+   const lg=Math.min(BH.length,Math.round(Math.min(p.pg+(p.pd||60),340)/16.67));
    if(lg>0){const h=BH[BH.length-lg],hx=h[0]-p.x,hy=h[1]-p.y,hd=Math.hypot(hx,hy);if(hd&&hd<kr&&d<kr+60){vx0=hx;vy0=hy;vd=hd}}
   }
   if(p.in.k){if(!p.kk&&vd&&vd<kr&&(!G.ti||p.team===G.ti.t)){const sup=p.ss>0;let f=sup?M.ks*2.3:M.ks;if(sup)p.ss=0;let ux=vx0/vd,uy=vy0/vd;if(G.ti){let fx=0;if(p.bot&&p.in.ta){const ex=p.in.ta[0]-B.x,ey=p.in.ta[1]-B.y,el=Math.hypot(ex,ey)||1;ux=ex/el;uy=ey/el;fx=p.in.ta[2]||0}const r=tiKick(ux,uy,f,fx);ux=r[0];uy=r[1];f=r[2];endThrowIn()}B.vx+=ux*f;B.vy+=uy*f;p.kk=1;G.hold=false;kd=1;G.lt=p.id;G.lk=p.id;G.ltt=G.lkt=bt;fev(['k',B.x|0,B.y|0,sup?1:0,p.cv>0?1:0,p.id])}}
@@ -1283,7 +1283,7 @@ function broadcast(){
  const st=snapStatic(),k=JSON.stringify(st);
  if(k!==stS){stS=k;stN=4}
  if(stN>0||++stC>=15){Object.assign(s,st);if(stN>0)stN--;stC=0}
- s.t0='s';s.q=sq=n;
+ s.t0='s';s.q=sq=n;s.k=tick;
  const str=JSON.stringify(s),hasEv=!!s.e;
  for(const c of conns)netTx(c,str,!hasEv);/* cliente lento: salta snapshots de posición en vez de acumular cola */
 }
@@ -1294,11 +1294,12 @@ function applySnap(m){
  if(m.t0==='full'){leave('La sala está llena');return}
  if(m.t0==='pgs'){G.players.forEach((p,id)=>{p.pg=(m.pg&&m.pg[id])||0});return}
  if(m.t0==='err'){showErr(m.m||'');return}
- if(m.t0==='pong'){rtt=clamp(rtt*.7+(performance.now()-m.n)*.3,15,400);rttOk=1;return}
+ if(m.t0==='pong'){const sm=performance.now()-m.n;rtt=clamp(sm>rtt*2.5+30?rtt*.95+sm*.05:rtt*.8+sm*.2,15,400);rttOk=1;return}
  if(m.t0==='rx'){if(m.e>=0&&m.e<5)RX.set(m.id,{e:m.e|0,t:performance.now()});return}
  if(m.t0==='chat'){addChat(m);return}
  if(m.t0!=='s')return;
  if(m.q!==undefined){if(m.q<=lastQ&&m.q>lastQ-50)return;lastQ=m.q}
+ sbPush(m,performance.now());
  if(m.sp!==undefined)spi=clamp(m.sp|0,0,2);
  if(m.pw!==undefined)pwOn=!!m.pw;
  if(m.df!==undefined)diff=m.df|0;
@@ -1319,12 +1320,11 @@ function applySnap(m){
   p.team=team;p.tx=x;p.ty=y;p.kk=kk;p.vx=vx||0;p.vy=vy||0;p.dc=dc||0;p.sc=sc||0;p.pu=pu||0;p.fx=fx||0;p.ef=ef||0;p.r=(fx&4)?PR*1.5:(fx&128)?PR*.4:PR;
   if(id===myId&&p.pon){
    const t=snapT-rtt;let h=null,bd=1e9;for(const e of hist){const d=Math.abs(e[0]-t);if(d<bd){bd=d;h=e}}
-   if(h){const ex=x-h[1],ey=y-h[2];if(Math.hypot(ex,ey)>60){p.x=x;p.y=y;p.pvx=vx||0;p.pvy=vy||0;hist.length=0;p.ex=p.ey=0}else{p.ex=ex;p.ey=ey}}
-  }else if(Math.hypot(p.x-x,p.y-y)>80){p.x=x;p.y=y}
+   if(h){const ex=x-h[1],ey=y-h[2];if(Math.hypot(ex,ey)>60){p.x=x;p.y=y;p.pvx=vx||0;p.pvy=vy||0;pxo=p.x;pyo=p.y;hist.length=0;p.ex=p.ey=0}else{p.ex=Math.abs(ex)<.8?0:ex;p.ey=Math.abs(ey)<.8?0:ey}}
+  }
  }
  G.players.forEach((_,id)=>{if(!seen.has(id)){G.players.delete(id);PNM.delete(id)}});
  const B=G.ball;B.tx=m.b[0];B.ty=m.b[1];B.vx=m.b[2]||0;B.vy=m.b[3]||0;
- if(Math.hypot(B.x-B.tx,B.y-B.ty)>80){B.x=B.tx;B.y=B.ty}
  if(m.e)for(const[ei,e]of m.e)if(ei>lastEv){lastEv=ei;playEv(e)}
  if(m.md!==undefined&&m.md!==MI&&MODES[m.md])setMode(m.md,false);
  G.score=m.s;G.time=m.t;G.gold=!!m.g;G.rs=m.rs||0;if(m.bx!==undefined)G.bxs=m.bx;if(m.wl!==undefined)G.wl=m.wl.map(x=>({x}));G.cb=m.cb|0;G.ti=m.ti?{t:m.ti[0],k:m.ti[1],x:m.ti[2],y:m.ti[3],e:m.ti[4],sy:m.ti[5]}:null;G.cd=m.c||0;G.phase=m.ph;if(m.m!==undefined)G.msg=m.m;
@@ -2066,11 +2066,39 @@ document.addEventListener('visibilitychange',()=>{
 /* ---------- bucle principal ---------- */
 let last=performance.now(),acc=0,tick=0,snapT=0,hk='';
 let dce=0,hSkip=false,hFlip=0;
-let rtt=100,pdd=0,pdc=0,hist=[],pacc=0,lastPing=0,lastQ=0,lastBk='0,0,0';
+let rtt=100,pdd=0,pdc=0,hist=[],pacc=0,pxo=0,pyo=0,lastPing=0,lastQ=0,lastBk='0,0,0';
+/*@BUF*/
+const TKM=1000/60;let SB=[],offE=null,jit=0,RDL=70;
+function sbPush(m,now){
+ if(m.k===undefined)return;
+ if(SB.length&&m.k<SB[SB.length-1].k-600){SB=[];offE=null}/* el servidor se reinició */
+ const raw=now-m.k*TKM;
+ if(offE===null||raw<offE)offE=raw;else offE+=(raw-offE)*.01;
+ jit=jit*.95+(raw-offE)*.05;
+ if(SB.length&&m.k<=SB[SB.length-1].k)return;
+ const pl=new Map();for(const[id,team,x,y,kk,vx,vy]of m.p)pl.set(id,[x,y,vx||0,vy||0]);
+ SB.push({k:m.k,pl,b:[m.b[0],m.b[1],m.b[2]||0,m.b[3]||0]});
+ if(SB.length>16)SB.shift();
+ let iv=1e9;for(let i=1;i<SB.length;i++)iv=Math.min(iv,(SB[i].k-SB[i-1].k)*TKM);if(iv>200)iv=33.4;
+ RDL+=(Math.max(48,Math.min(150,iv*1.15+jit*2.2+6))-RDL)*.05;
+}
+function sbSample(now){
+ const n=SB.length;if(n<2||offE===null)return null;
+ const t=(now-offE-RDL)/TKM;let a=null,b=null;
+ for(let i=n-1;i>=0;i--){if(SB[i].k<=t){a=SB[i];b=SB[i+1]||null;break}}
+ if(!a)return{a:SB[0],b:SB[0],f:0,ex:0};
+ if(!b)return{a,b:a,f:0,ex:Math.min(t-a.k,9)};
+ return{a,b,f:(t-a.k)/(b.k-a.k),ex:0};
+}
+function lerpE(A,B,S){/* A,B=[x,y,vx,vy] de dos snapshots; devuelve [x,y] */
+ if(Math.hypot(B[0]-A[0],B[1]-A[1])>150)return S.f>=.5?[B[0],B[1]]:[A[0],A[1]];/* teletransporte (saque, gol...) */
+ return[A[0]+(B[0]-A[0])*S.f+A[2]*S.ex,A[1]+(B[1]-A[1])*S.f+A[3]*S.ex];
+}
+/*@BUFEND*/
 let PI=[],pkd=0,myKP=0;/* impulsos locales sobre el balón que el servidor aún no ha reflejado */
 const BF=(d,t)=>d<1?(1-Math.pow(d,t))/(1-d):t;
 function ballOff(now){/* desplazamiento visual del balón: lo que ya hice yo menos lo que el servidor ya me ha mostrado */
- const Dv=(rtt+30)/16.67,bd=G.ball.damp||.99;let ox=0,oy=0;
+ const Dv=(rtt+RDL)/16.67,bd=G.ball.damp||.99;let ox=0,oy=0;
  for(let i=PI.length-1;i>=0;i--){const e=PI[i],tau=(now-e.t)/16.67;
   if(tau>300){PI.splice(0,i+1);break}
   const w=clamp(1-(tau-Dv-40)/60,0,1),f=(BF(bd,tau)-BF(bd,Math.max(0,tau-Dv)))*w;ox+=e.vx*f;oy+=e.vy*f;if(tau<Dv){ox+=e.dx;oy+=e.dy}}
@@ -2080,21 +2108,19 @@ function ballOff(now){/* desplazamiento visual del balón: lo que ya hice yo men
 }
 function pcol(me){
  /* colisión local con el balón y los demás usando sus posiciones EXTRAPOLADAS: lo que se ve va ~RTT+45 ms por detrás del servidor */
- const t=Math.min(18,(rtt+45)/16.67);
+ const t=Math.min(20,(rtt+RDL)/16.67);
  const g={x:0,y:0,vx:0,vy:0,r:0,im:1,bc:.5};
  const go=(o,dm)=>{const f=BF(dm,t),vx=o.vx||0,vy=o.vy||0;g.x=o.x+vx*f;g.y=o.y+vy*f;g.vx=vx;g.vy=vy;g.r=o.r;g.im=o.im===undefined?1:o.im;g.bc=o.bc===undefined?.5:o.bc;col(me,g)};
  G.players.forEach(q=>{if(q!==me&&q.team&&!(q.fx&8))go(q,q.damp||.96)});
  const b=G.ball;
  if(G.ti){g.x=b.x;g.y=b.y;g.vx=g.vy=0;g.r=b.r;g.im=0;g.bc=.5;col(me,g);return}
  /* balón: posición del servidor extrapolada + lo que yo ya le he hecho y el servidor aún no sabe */
- const now=performance.now(),bd=b.damp||.99,Dg=(rtt+45)/16.67,f=BF(bd,t);
+ const now=performance.now(),bd=b.damp||.99,Dg=(rtt+RDL)/16.67,f=BF(bd,t);
  let ax=0,ay=0,avx=0,avy=0;
  for(const e of PI){const tau=(now-e.t)/16.67;if(tau<Dg){const ff=BF(bd,tau),dp=Math.pow(bd,tau);ax+=e.vx*ff+e.dx;ay+=e.vy*ff+e.dy;avx+=e.vx*dp;avy+=e.vy*dp}}
  const x0=b.x+b.vx*f+ax,y0=b.y+b.vy*f+ay,vx0=b.vx+avx,vy0=b.vy+avy;
  g.x=x0;g.y=y0;g.vx=vx0;g.vy=vy0;g.r=b.r;g.im=b.im===undefined?1:b.im;g.bc=b.bc===undefined?.5:b.bc;
  col(me,g);
- const dvx=g.vx-vx0,dvy=g.vy-vy0,dpx=g.x-x0,dpy=g.y-y0;
- if(Math.abs(dvx)+Math.abs(dvy)+Math.abs(dpx)+Math.abs(dpy)>.02){PI.push({t:now,vx:dvx,vy:dvy,dx:dpx,dy:dpy});if(PI.length>150)PI.shift()}
 }
 function predKick(p){
  /* chute predicho al instante: sonido, efecto y el balón sale ya, sin esperar al servidor */
@@ -2126,6 +2152,7 @@ function loop(now){
  else if(hostConn&&hostConn.open&&((key!==lastIn&&(now-lastSend>=16||(i.k+','+i.d+','+i.u)!==lastBk))||now-lastSend>100)){
   netJ(hostConn,{t:'in',x:i.x,y:i.y,k:i.k,d:i.d,s:i.s,u:i.u});lastIn=key;lastSend=now;lastBk=i.k+','+i.d+','+i.u;
  }
+ let dfx=null;
  if(isHost){
   acc+=dt;
   const SR=conns.length>8?3:2;/* 30 Hz normal, 20 Hz con la sala llena */
@@ -2133,21 +2160,28 @@ function loop(now){
   while(acc>=1000/60){step();acc-=1000/60;if(++tick%SR===0)broadcast()}
  }else{
   const k=1-Math.exp(-dt/45),age=Math.min(now-snapT,100)/16.67;
-  if(hostConn&&hostConn.open&&now-lastPing>1000){netJ(hostConn,{t:'ping',n:now,r:Math.round(rtt)});lastPing=now}
+  if(hostConn&&hostConn.open&&now-lastPing>1000){netJ(hostConn,{t:'ping',n:now,r:Math.round(rtt),d:Math.round(RDL)});lastPing=now}
   const me=G.players.get(myId),pr=!!(me&&me.team&&(G.phase==='play'||G.phase==='lobby')&&!(me.fx&8));
-  if(me){if(pr&&!me.pon){me.pon=true;me.pvx=me.vx;me.pvy=me.vy;me.ex=me.ey=0;hist.length=0}else if(!pr)me.pon=false}
-  G.players.forEach(p=>{if(p===me&&pr)return;p.x+=(p.tx+p.vx*age-p.x)*k;p.y+=(p.ty+p.vy*age-p.y)*k});
+  if(me){if(pr&&!me.pon){me.pon=true;me.pvx=me.vx;me.pvy=me.vy;me.ex=me.ey=0;pxo=me.x;pyo=me.y;hist.length=0}else if(!pr)me.pon=false}
+  const SS=sbSample(now);
+  if(SS){
+   G.players.forEach((p,id)=>{if(p===me&&pr)return;const A=SS.a.pl.get(id),Bq=SS.b.pl.get(id);if(!A&&!Bq)return;const q=lerpE(A||Bq,Bq||A,SS);p.x=q[0];p.y=q[1]});
+  }else G.players.forEach(p=>{if(p===me&&pr)return;p.x+=(p.tx+p.vx*age-p.x)*k;p.y+=(p.ty+p.vy*age-p.y)*k});
   if(pr){
-   pacc+=dt;let n=0;while(pacc>=1000/60&&n++<5){pstep(me,i);pacc-=1000/60}if(pacc>50)pacc=0;
-   if(me.ex||me.ey){const c=.15,dx=me.ex*c,dy=me.ey*c;me.x+=dx;me.y+=dy;me.ex-=dx;me.ey-=dy;for(const e of hist){e[1]+=dx;e[2]+=dy}}
+   pacc+=dt;let n=0;while(pacc>=1000/60&&n++<5){pxo=me.x;pyo=me.y;pstep(me,i);pacc-=1000/60}if(pacc>50)pacc=0;
+   if(me.ex||me.ey){const c=1-Math.pow(.85,dt/16.67),dx=me.ex*c,dy=me.ey*c;me.x+=dx;me.y+=dy;me.ex-=dx;me.ey-=dy;for(const e of hist){e[1]+=dx;e[2]+=dy}}
    hist.push([now,me.x,me.y]);if(hist.length>60)hist.shift();
+   {const al=Math.min(1,pacc/(1000/60));dfx=[me,(pxo-me.x)*(1-al),(pyo-me.y)*(1-al)];me.x+=dfx[1];me.y+=dfx[2]}
   }
-  const B=G.ball,kb=1-Math.exp(-dt/22);B.x+=(B.tx+B.vx*age-B.x)*kb;B.y+=(B.ty+B.vy*age-B.y)*kb;
+  const B=G.ball;
+  if(SS){const q=lerpE(SS.a.b,SS.b.b,SS);B.x=q[0];B.y=q[1]}
+  else{const kb=1-Math.exp(-dt/22);B.x+=(B.tx+B.vx*age-B.x)*kb;B.y+=(B.ty+B.vy*age-B.y)*kb}
  }
  /* el anfitrión prioriza la simulación: si dibujar le cuesta mucho, pinta 1 de cada 2 frames (la física y los envíos no se tocan) */
  if(isHost&&hSkip&&(hFlip^=1)){hud();dashUI();pupUI();return}
  const t0=performance.now();let bo=null;if(!isHost&&PI.length){bo=ballOff(now);G.ball.x+=bo[0];G.ball.y+=bo[1]}
  draw();if(bo){G.ball.x-=bo[0];G.ball.y-=bo[1]}
+ if(dfx){dfx[0].x-=dfx[1];dfx[0].y-=dfx[2]}
  hud();dashUI();pupUI();
  if(isHost){dce=dce*.9+(performance.now()-t0)*.1;hSkip=hSkip?dce>6:dce>9}
 }
