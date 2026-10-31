@@ -570,7 +570,7 @@ function setTeam(p,t){
  p.tx=p.x;p.ty=p.y;
 }
 function kickoff(){
- const B=G.ball;B.x=B.y=B.vx=B.vy=0;G.lt=G.lk=0;G.ti=null;B.im=1;
+ const B=G.ball;B.x=B.y=B.vx=B.vy=0;G.lt=G.lk=0;G.ti=null;B.im=1;BH.length=0;
  for(const t of[1,2]){
   const L=[...G.players.values()].filter(p=>p.team===t);
   L.forEach((p,i)=>{p.x=(t==1?-1:1)*W/4;p.y=(i-(L.length-1)/2)*50;p.vx=p.vy=0;p.kk=0});
@@ -1081,23 +1081,25 @@ function tiKick(ux,uy,f,fx){
  const l=Math.hypot(nx,ny)||1;return[nx/l,ny/l,f];
 }
 /* zonas prohibidas para el equipo rival mientras se espera el saque */
+const BH=[];/* historial de posiciones del balón (1 por tick) para compensar la latencia del chute */
+function tiMove(p,x,y){const dx=x-p.x,dy=y-p.y,m=Math.hypot(dx,dy);if(m>14){p.x+=dx/m*14;p.y+=dy/m*14}else{p.x=x;p.y=y}}/* sacar de la zona sin teletransportar */
 function tiClamp(L){
  const T=G.ti,hw=W/2,hh=H/2,pw=W*.16,ph=H*.6;
  for(const p of (L||P)){
   if(p.team===T.t)continue;
   if(T.k===0){
    const lim=T.sy*(hh-THD-p.r);
-   if(T.sy*(p.y-lim)>0){p.y=lim;if(p.vy*T.sy>0)p.vy=0;if(p.pvy!==undefined&&p.pvy*T.sy>0)p.pvy=0}
+   if(T.sy*(p.y-lim)>0){tiMove(p,p.x,lim);if(p.vy*T.sy>0)p.vy=0;if(p.pvy!==undefined&&p.pvy*T.sy>0)p.pvy=0}
   }else if(T.k===1){
    const fx=hw-pw-p.r,e=T.e;
    if(e*p.x>fx&&Math.abs(p.y)<ph/2+p.r){
     const cx=e*p.x-fx,cy=ph/2+p.r-Math.abs(p.y);
-    if(cx<=cy){p.x=e*fx;if(p.vx*e>0)p.vx=0;if(p.pvx!==undefined&&p.pvx*e>0)p.pvx=0}
-    else{const sy=p.y>=0?1:-1;p.y=sy*(ph/2+p.r);if(p.vy*sy<0)p.vy=0;if(p.pvy!==undefined&&p.pvy*sy<0)p.pvy=0}
+    if(cx<=cy){tiMove(p,e*fx,p.y);if(p.vx*e>0)p.vx=0;if(p.pvx!==undefined&&p.pvx*e>0)p.pvx=0}
+    else{const sy=p.y>=0?1:-1;tiMove(p,p.x,sy*(ph/2+p.r));if(p.vy*sy<0)p.vy=0;if(p.pvy!==undefined&&p.pvy*sy<0)p.pvy=0}
    }
   }else{
    const cx=T.e*hw,cy=T.sy*hh,R=CRR+p.r,dx=p.x-cx,dy=p.y-cy,d=Math.hypot(dx,dy)||.001;
-   if(d<R){const nx=dx/d,ny=dy/d;p.x=cx+nx*R;p.y=cy+ny*R;const v=p.vx*nx+p.vy*ny;if(v<0){p.vx-=v*nx;p.vy-=v*ny}}
+   if(d<R){const nx=dx/d,ny=dy/d;tiMove(p,cx+nx*R,cy+ny*R);const v=p.vx*nx+p.vy*ny;if(v<0){p.vx-=v*nx;p.vy-=v*ny}}
   }
  }
 }
@@ -1153,7 +1155,12 @@ function step(){
  for(const p of P){
   if(p.fz>0)continue;
   const dx=B.x-p.x,dy=B.y-p.y,d=Math.hypot(dx,dy),kr=p.r+BR+8;let kd=0;if(d<p.r+BR+3){G.lt=p.id;G.ltt=bt}
-  if(p.in.k){if(!p.kk&&d&&d<kr&&(!G.ti||p.team===G.ti.t)){const sup=p.ss>0;let f=sup?M.ks*2.3:M.ks;if(sup)p.ss=0;let ux=dx/d,uy=dy/d;if(G.ti){let fx=0;if(p.bot&&p.in.ta){const ex=p.in.ta[0]-B.x,ey=p.in.ta[1]-B.y,el=Math.hypot(ex,ey)||1;ux=ex/el;uy=ey/el;fx=p.in.ta[2]||0}const r=tiKick(ux,uy,f,fx);ux=r[0];uy=r[1];f=r[2];endThrowIn()}B.vx+=ux*f;B.vy+=uy*f;p.kk=1;G.hold=false;kd=1;G.lt=p.id;G.lk=p.id;G.ltt=G.lkt=bt;fev(['k',B.x|0,B.y|0,sup?1:0,p.cv>0?1:0])}}
+  let vx0=dx,vy0=dy,vd=d;
+  if(p.in.k&&!p.kk&&!G.ti&&!p.bot&&p.pg>0&&BH.length){/* compensación de latencia: el jugador chuta lo que VE (el balón de hace ~RTT+45 ms) */
+   const lg=Math.min(BH.length,Math.round(Math.min(p.pg+45,320)/16.67));
+   if(lg>0){const h=BH[BH.length-lg],hx=h[0]-p.x,hy=h[1]-p.y,hd=Math.hypot(hx,hy);if(hd&&hd<kr&&d<kr+60){vx0=hx;vy0=hy;vd=hd}}
+  }
+  if(p.in.k){if(!p.kk&&vd&&vd<kr&&(!G.ti||p.team===G.ti.t)){const sup=p.ss>0;let f=sup?M.ks*2.3:M.ks;if(sup)p.ss=0;let ux=vx0/vd,uy=vy0/vd;if(G.ti){let fx=0;if(p.bot&&p.in.ta){const ex=p.in.ta[0]-B.x,ey=p.in.ta[1]-B.y,el=Math.hypot(ex,ey)||1;ux=ex/el;uy=ey/el;fx=p.in.ta[2]||0}const r=tiKick(ux,uy,f,fx);ux=r[0];uy=r[1];f=r[2];endThrowIn()}B.vx+=ux*f;B.vy+=uy*f;p.kk=1;G.hold=false;kd=1;G.lt=p.id;G.lk=p.id;G.ltt=G.lkt=bt;fev(['k',B.x|0,B.y|0,sup?1:0,p.cv>0?1:0])}}
   else p.kk=0;
   if(kd&&p.cv>0){G.cb={id:p.id,t:90};p.cv=0}
   if(kd&&p.tm>0)p.tm=0;
@@ -1171,6 +1178,7 @@ function step(){
   if(hit)fev(['h',p.x|0,p.y|0]);
  }
  for(const d of A)wall(d);
+ BH.push([B.x,B.y]);if(BH.length>40)BH.shift();
  if(G.ti)tiClamp();
  if(G.wl.length){for(const w of G.wl){w.t--;for(const d of A)seg(d,w.x,-GH/2,w.x,GH/2,d.out?0:.6)}G.wl=G.wl.filter(w=>w.t>0)}
  if(pwOn&&!G.hold&&(G.phase==='play'||G.phase==='lobby')){
@@ -2051,11 +2059,12 @@ let last=performance.now(),acc=0,tick=0,snapT=0,hk='';
 let dce=0,hSkip=false,hFlip=0;
 let rtt=100,pdd=0,pdc=0,hist=[],pacc=0,lastPing=0,lastQ=0,lastBk='0,0,0';
 function pcol(me){
- /* colisión local con el balón y los demás (copias temporales, no se mueven los reales) */
+ /* colisión local con el balón y los demás usando sus posiciones EXTRAPOLADAS: lo que se ve va ~RTT+45 ms por detrás del servidor */
+ const t=Math.min(18,(rtt+45)/16.67);
  const g={x:0,y:0,vx:0,vy:0,r:0,im:1,bc:.5};
- const go=o=>{g.x=o.x;g.y=o.y;g.vx=o.vx||0;g.vy=o.vy||0;g.r=o.r;g.im=o.im===undefined?1:o.im;g.bc=o.bc===undefined?.5:o.bc;col(me,g)};
- G.players.forEach(q=>{if(q!==me&&q.team&&!(q.fx&8))go(q)});
- if(G.ti){const b=G.ball;g.x=b.x;g.y=b.y;g.vx=g.vy=0;g.r=b.r;g.im=0;g.bc=.5;col(me,g)}else go(G.ball);
+ const go=(o,dm)=>{const f=dm<1?(1-Math.pow(dm,t))/(1-dm):t,vx=o.vx||0,vy=o.vy||0;g.x=o.x+vx*f;g.y=o.y+vy*f;g.vx=vx;g.vy=vy;g.r=o.r;g.im=o.im===undefined?1:o.im;g.bc=o.bc===undefined?.5:o.bc;col(me,g)};
+ G.players.forEach(q=>{if(q!==me&&q.team&&!(q.fx&8))go(q,q.damp||.96)});
+ if(G.ti){const b=G.ball;g.x=b.x;g.y=b.y;g.vx=g.vy=0;g.r=b.r;g.im=0;g.bc=.5;col(me,g)}else go(G.ball,G.ball.damp||.985);
 }
 function pstep(p,i){
  let x=i.x,y=i.y;const l=Math.hypot(x,y);if(l>1){x/=l;y/=l}
@@ -2091,7 +2100,7 @@ function loop(now){
    if(me.ex||me.ey){const c=.15,dx=me.ex*c,dy=me.ey*c;me.x+=dx;me.y+=dy;me.ex-=dx;me.ey-=dy;for(const e of hist){e[1]+=dx;e[2]+=dy}}
    hist.push([now,me.x,me.y]);if(hist.length>60)hist.shift();
   }
-  const B=G.ball;B.x+=(B.tx+B.vx*age-B.x)*k;B.y+=(B.ty+B.vy*age-B.y)*k;
+  const B=G.ball,kb=1-Math.exp(-dt/22);B.x+=(B.tx+B.vx*age-B.x)*kb;B.y+=(B.ty+B.vy*age-B.y)*kb;
  }
  /* el anfitrión prioriza la simulación: si dibujar le cuesta mucho, pinta 1 de cada 2 frames (la física y los envíos no se tocan) */
  if(isHost&&hSkip&&(hFlip^=1)){hud();dashUI();pupUI();return}
