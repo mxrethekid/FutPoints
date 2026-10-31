@@ -36,7 +36,7 @@ function setTeams(i1,i2){const ok=i=>i===-1||!!TEAMS[i];if(!ok(i1)||!ok(i2)||(i1
 const POST = `
 var tick=0;
 var _ss=snapStatic;snapStatic=function(){const o=_ss();o.ad=ADMIN;return o};
-function S_one(){step();G.players.forEach(p=>{if(p.kn){const r=p.kr||[0,0,0];p.in.k=r[0];p.in.d=r[1];p.in.u=r[2];p.kn=0}});const SR=conns.length>8?3:2;if(++tick%SR===0)broadcast()}
+function S_one(){step();G.players.forEach(p=>{if(p.kn){const r=p.kr||[0,0,0];p.in.k=r[0];p.in.d=r[1];p.in.u=r[2];p.kn=0}});const SR=conns.length>8?3:conns.length>6?2:1;/* 60 envíos/s con hasta 6 jugadores */if(++tick%SR===0)broadcast()}
 function S_force(){stN=4}
 function S_add(id,name,num){if(G.players.size>=MAXP)return false;G.players.set(id,mk(id,String(name||'Jugador').slice(0,12),num));return true}
 function S_del(id){G.players.delete(id)}
