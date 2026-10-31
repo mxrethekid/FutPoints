@@ -2080,14 +2080,14 @@ function sbPush(m,now){
  SB.push({k:m.k,pl,b:[m.b[0],m.b[1],m.b[2]||0,m.b[3]||0]});
  if(SB.length>16)SB.shift();
  let iv=1e9;for(let i=1;i<SB.length;i++)iv=Math.min(iv,(SB[i].k-SB[i-1].k)*TKM);if(iv>200)iv=33.4;
- RDL+=(Math.max(48,Math.min(150,iv*1.15+jit*2.2+6))-RDL)*.05;
+ RDL+=(Math.max(36,Math.min(150,iv*1.15+jit*2.2+6))-RDL)*.05;
 }
 function sbSample(now){
  const n=SB.length;if(n<2||offE===null)return null;
  const t=(now-offE-RDL)/TKM;let a=null,b=null;
  for(let i=n-1;i>=0;i--){if(SB[i].k<=t){a=SB[i];b=SB[i+1]||null;break}}
  if(!a)return{a:SB[0],b:SB[0],f:0,ex:0};
- if(!b)return{a,b:a,f:0,ex:Math.min(t-a.k,9)};
+ if(!b)return{a,b:a,f:0,ex:Math.max(0,Math.min(t-a.k,4))};
  return{a,b,f:(t-a.k)/(b.k-a.k),ex:0};
 }
 function lerpE(A,B,S){/* A,B=[x,y,vx,vy] de dos snapshots; devuelve [x,y] */
@@ -2097,15 +2097,6 @@ function lerpE(A,B,S){/* A,B=[x,y,vx,vy] de dos snapshots; devuelve [x,y] */
 /*@BUFEND*/
 let PI=[],pkd=0,myKP=0;/* impulsos locales sobre el balón que el servidor aún no ha reflejado */
 const BF=(d,t)=>d<1?(1-Math.pow(d,t))/(1-d):t;
-function ballOff(now){/* desplazamiento visual del balón: lo que ya hice yo menos lo que el servidor ya me ha mostrado */
- const Dv=(rtt+RDL)/16.67,bd=G.ball.damp||.99;let ox=0,oy=0;
- for(let i=PI.length-1;i>=0;i--){const e=PI[i],tau=(now-e.t)/16.67;
-  if(tau>300){PI.splice(0,i+1);break}
-  const w=clamp(1-(tau-Dv-40)/60,0,1),f=(BF(bd,tau)-BF(bd,Math.max(0,tau-Dv)))*w;ox+=e.vx*f;oy+=e.vy*f;if(tau<Dv){ox+=e.dx;oy+=e.dy}}
- const l=Math.hypot(ox,oy);if(l>140){ox*=140/l;oy*=140/l}
- const b=G.ball,tb={x:b.x+ox,y:b.y+oy,r:BR,vx:0,vy:0,wb:0,out:0};wall(tb);/* el balón dibujado no atraviesa paredes ni postes */
- return[tb.x-b.x,tb.y-b.y];
-}
 function pcol(me){
  /* colisión local con el balón y los demás usando sus posiciones EXTRAPOLADAS: lo que se ve va ~RTT+45 ms por detrás del servidor */
  const t=Math.min(20,(rtt+RDL)/16.67);
@@ -2125,7 +2116,7 @@ function pcol(me){
 function predKick(p){
  /* chute predicho al instante: sonido, efecto y el balón sale ya, sin esperar al servidor */
  if(G.ti||(p.fx&8))return;
- const now=performance.now(),B=G.ball,o=ballOff(now),bx=B.x+o[0],by=B.y+o[1];
+ const now=performance.now(),B=G.ball,bx=B.x,by=B.y;
  const dx=bx-p.x,dy=by-p.y,d=Math.hypot(dx,dy),kr=p.r+BR+8;
  if(!d||d>=kr)return;
  const sup=(p.fx&32)?1:0,f=M.ks*(sup?2.3:1);
@@ -2174,13 +2165,13 @@ function loop(now){
    {const al=Math.min(1,pacc/(1000/60));dfx=[me,(pxo-me.x)*(1-al),(pyo-me.y)*(1-al)];me.x+=dfx[1];me.y+=dfx[2]}
   }
   const B=G.ball;
-  if(SS){const q=lerpE(SS.a.b,SS.b.b,SS);B.x=q[0];B.y=q[1]}
+  if(SS){const q=lerpE(SS.a.b,SS.b.b,SS);B.x=q[0];B.y=q[1];if(SS.ex>0){const tb={x:B.x,y:B.y,r:BR,vx:0,vy:0,wb:0,out:0};wall(tb);B.x=tb.x;B.y=tb.y}}
   else{const kb=1-Math.exp(-dt/22);B.x+=(B.tx+B.vx*age-B.x)*kb;B.y+=(B.ty+B.vy*age-B.y)*kb}
  }
  /* el anfitrión prioriza la simulación: si dibujar le cuesta mucho, pinta 1 de cada 2 frames (la física y los envíos no se tocan) */
  if(isHost&&hSkip&&(hFlip^=1)){hud();dashUI();pupUI();return}
- const t0=performance.now();let bo=null;if(!isHost&&PI.length){bo=ballOff(now);G.ball.x+=bo[0];G.ball.y+=bo[1]}
- draw();if(bo){G.ball.x-=bo[0];G.ball.y-=bo[1]}
+ const t0=performance.now();
+ draw();
  if(dfx){dfx[0].x-=dfx[1];dfx[0].y-=dfx[2]}
  hud();dashUI();pupUI();
  if(isHost){dce=dce*.9+(performance.now()-t0)*.1;hSkip=hSkip?dce>6:dce>9}
