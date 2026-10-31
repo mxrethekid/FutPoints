@@ -56,7 +56,7 @@ function S_msg(id,m){
   const n=Date.now();if(n-(p.rl||0)<800)return;p.rl=n;
   netAll({t0:'rx',id:p.id,e});
  }
- else if(m.t==='ping'){if(m.r!==undefined)p.pg=clamp(Math.round(+m.r)||0,0,999)}
+ else if(m.t==='ping'){if(m.r!==undefined)p.pg=clamp(Math.round(+m.r)||0,0,999);if(m.d!==undefined)p.pd=clamp(Math.round(+m.d)||0,0,250)}
 }
 function S_adm(a,v){
  const lobby=G.phase==='lobby';
